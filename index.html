@@ -1,0 +1,166 @@
+﻿<style>
+.error{color: red}
+</style>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="validator.js"></script>
+
+<span style='width:400px'>
+	XML:<br>
+	<textarea id="DocumentArea" onkeyup="ValidateTemplate()" style="width: 400px; height: 650px;">
+	<MyXML country="RO"
+		  currency = "RON"
+		  url="https://en.wikipedia.org/wiki/Romania"
+		  url2="none">
+		<Students>
+			<Student type='test'>
+				<Age>33</Age>
+				<Name>John</Name>
+				<Name>Michael</Name>
+				<Info><![CDATA[
+										 <Address>1</Address>
+				]]></Info>
+				<!--Comment-->
+			</Student>
+			<Student type='regular'>
+				<Age>33</Age>
+				<Name>John</Name>
+				<Name>Michael</Name>
+				<Info><![CDATA[
+										 <Address>1</Address>
+				]]></Info>
+				<!--Comment-->
+			</Student>
+		</Students>
+	</MyXML>
+	</textarea>
+</span>
+<span style='width:400px'>	
+	<textarea id="ValidatorArea" onkeyup="ValidateTemplate()" style="width: 800; height: 650px;">
+	{
+		"tags" : 
+		[
+			{
+				"name" : "Students",
+				"min" : 0,
+				"max" : 1,
+				"value" : null,
+				"attributes" : 
+				[
+				],
+				"tags" : 
+				[
+					{
+						"name" : "Student",
+						"min" : 0,
+						"max" : null,
+						"value" : null,
+						"attributes" : 
+						[
+							{
+								"name" : "type",
+								"min" : 1,
+								"max" : 1,
+								"values" : 
+								[
+									"test",
+									"regular"
+								]
+							}
+						]
+						
+					}
+				]
+			}
+		]
+	}
+	</textarea>
+</span>
+<div id='validation_output'></div>
+
+<script>
+$(function() {
+	var validationResult = ValidateTemplate();
+	$('#validation_output').html(validationResult);
+});
+
+function Validate(xml, validator)
+{
+	var validationResults = '';
+	$(validator.tags).each(function(index){
+		var elements = GetByName(xml.children, validator.tags[index].name);
+		validationResults += '<div class="info">Found ' + elements.length + ' elements named [' + validator.tags[index].name + ']';
+		
+		if(validator.tags[index].min !== null && elements.length < validator.tags[index].min)
+		{
+			validationResults += '<div class="error">Found ' + elements.length + ' elements named [' + validator.tags[index].name + ']. Minimum is: ' + validator.tags[index].min + '</div>';
+		}
+		if(validator.tags[index].max !== null && elements.length > validator.tags[index].max)
+		{
+			validationResults += '<div class="error">Found ' + elements.length + ' elements named [' + validator.tags[index].name + ']. Maximum is: ' + validator.tags[index].max + '</div>';
+		}
+		
+		$(elements).each(function(elementIndex){
+		
+			// check attributes
+			$(validator.tags[index].attributes).each(function(attributeIndex){
+				var attributes = GetTags(elements[elementIndex], validator.tags[index].attributes[attributeIndex].name);
+				validationResults += '<div class="info">&nbsp;&nbsp;&nbsp;&nbsp;found ' + attributes.length + ' attributes named [' + validator.tags[index].attributes[attributeIndex].name + '] for ' + validator.tags[index].name + '['+elementIndex+']';
+				
+				if(validator.tags[index].attributes[attributeIndex].min !== null && attributes.length < validator.tags[index].attributes[attributeIndex].min)
+				{
+					validationResults += '<div class="error">&nbsp;&nbsp;&nbsp;&nbsp;minimum is: ' + validator.tags[index].attributes[attributeIndex].min + '</div>';
+				}
+				if(validator.tags[index].attributes[attributeIndex].max !== null && attributes.length > validator.tags[index].attributes[attributeIndex].max)
+				{
+					validationResults += '<div class="error">&nbsp;&nbsp;&nbsp;&nbsp;maximum is: ' + validator.tags[index].attributes[attributeIndex].max + '</div>';
+				}
+				if(validator.tags[index].attributes[attributeIndex].values.length > 0)
+				{
+					if(jQuery.inArray(attributes[attributeIndex].value, validator.tags[index].attributes[attributeIndex].values) === -1)
+					{
+						validationResults += '<div class="error">&nbsp;&nbsp;&nbsp;&nbsp;' + attributes[attributeIndex].value + ' is not a valid value for attributes named [' + validator.tags[index].attributes[attributeIndex].name + '] for ' + validator.tags[index].name + '['+elementIndex+']</div>';
+					}
+				}
+			});
+		
+			validationResults += Validate(elements[elementIndex], validator.tags[index]);
+		});
+	});	
+	return validationResults;
+}
+
+function GetTags(xmlTag, Name)
+{
+	var elements = [];
+	$(xmlTag.attributes).each(function(attributeIndex){
+		if(xmlTag.attributes[attributeIndex].name == Name)
+		{
+			elements.push(xmlTag.attributes[attributeIndex]);
+		}
+	});
+	return elements;
+}
+
+function GetByName(xmlChildren, Name)
+{
+	var elements = [];
+	$(xmlChildren).each(function(index){
+		if(xmlChildren[index].tagName == Name)
+		elements.push(xmlChildren[index]);
+	});
+	return elements;
+}
+
+function ValidateTemplate()
+{
+	var validatorText = $('#ValidatorArea').val();
+	var validator = JSON.parse(validatorText);
+	var docment = $('#DocumentArea').val();
+	xmlDoc = $.parseXML( docment );
+	var xml = $( xmlDoc );
+	var validationResults = Validate(xml[0].children[0], validator);
+	var Name = xml.find( "Name" );
+	$('#validation_output').html(validationResults);	
+}
+</script>
